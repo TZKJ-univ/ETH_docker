@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  geth:
+    image: ethereum/client-go:stable
+    container_name: geth-fullnode
+    restart: unless-stopped
+    volumes:
+      - D:/eth_testnet/ethereum_data/geth:/root/.ethereum
+      - ./data/jwtsecret:/root/.ethereum/jwtsecret
+    ports:
+      - "30303:30303"        # p2p
+      - "30303:30303/udp"    # p2p discovery
+      - "8545:8545"          # RPC (HTTP)
+      - "8546:8546"          # WS
+      - "8551:8551"          # Auth RPC (Engine API)
+    command: [
+      "--sepolia",           # Sepolia テストネットを使用
+      "--http",
+      "--http.addr", "0.0.0.0",
+      "--http.api", "eth,net,web3,debug,engine",
+      "--http.vhosts", "*",
+      "--http.corsdomain", "*",
+      "--ws",
+      "--ws.addr", "0.0.0.0",
+      "--ws.api", "eth,net,web3",
+      "--syncmode", "snap",  # より高速な同期モード
+      "--gcmode", "full",
+      "--http.port", "8545",
+      "--ws.port", "8546",
+      "--authrpc.addr", "0.0.0.0",
+      "--authrpc.port", "8551",
+      "--authrpc.vhosts", "*",
+      "--metrics",
+      "--metrics.addr", "0.0.0.0",
+      "--metrics.port", "6060",
+      "--authrpc.jwtsecret", "/root/.ethereum/jwtsecret"
+    ]
+  
+  beacon:
+    image: consensys/teku:latest
+    container_name: teku-beacon
+    restart: unless-stopped
+    depends_on:
+      - geth
+    volumes:
+      - D:/eth_testnet/ethereum_data/beacon:/data
+      - ./data/jwtsecret:/data/jwtsecret
+    ports:
+      - "9000:9000/tcp"      # p2p
+      - "9000:9000/udp"      # p2p discovery
+      - "5051:5051"          # beacon API
+    command: [
+      "--network=sepolia",
+      "--data-path=/data",
+      "--ee-endpoint=http://geth:8551",
+      "--ee-jwt-secret-file=/data/jwtsecret",
+      "--rest-api-enabled=true",
+      "--rest-api-interface=0.0.0.0",
+      "--rest-api-port=5051",
+      "--metrics-enabled",
+      "--checkpoint-sync-url=https://sepolia.checkpoint-sync.ethpandaops.io",
+      "--ignore-weak-subjectivity-period-enabled=true",
+      "--validators-proposer-default-fee-recipient=0x0000000000000000000000000000000000000000"
+    ]
+
+# ホストマシンの D ドライブにデータを保存するため、Docker 管理ボリュームは使用しません
+# volumes:
+#   geth-data:
+#   beacon-data:
