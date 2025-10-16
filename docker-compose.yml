@@ -6,14 +6,14 @@ services:
     container_name: geth-fullnode
     restart: unless-stopped
     volumes:
-      - D:/eth_testnet/ethereum_data/geth:/root/.ethereum
+      - ./ethereum_data/geth:/root/.ethereum
       - ./data/jwtsecret:/root/.ethereum/jwtsecret
     ports:
-      - "30303:30303"        # p2p
-      - "30303:30303/udp"    # p2p discovery
-      - "8545:8545"          # RPC (HTTP)
-      - "8546:8546"          # WS
-      - "8551:8551"          # Auth RPC (Engine API)
+      - "30305:30303"        # p2p - ホスト側のポートを30305に変更
+      - "30305:30303/udp"    # p2p discovery - ホスト側のポートを30305に変更
+      - "8565:8545"          # RPC (HTTP) - ホスト側のポートを8565に変更
+      - "8566:8546"          # WS - ホスト側のポートを8566に変更
+      - "8552:8551"          # Auth RPC (Engine API) - ホスト側のポートを8552に変更
     command: [
       "--sepolia",           # Sepolia テストネットを使用
       "--http",
@@ -44,12 +44,12 @@ services:
     depends_on:
       - geth
     volumes:
-      - D:/eth_testnet/ethereum_data/beacon:/data
+      - ./ethereum_data/beacon:/data
       - ./data/jwtsecret:/data/jwtsecret
     ports:
-      - "9000:9000/tcp"      # p2p
-      - "9000:9000/udp"      # p2p discovery
-      - "5051:5051"          # beacon API
+      - "9001:9000/tcp"      # p2p - ホスト側のポートを9001に変更
+      - "9001:9000/udp"      # p2p discovery - ホスト側のポートを9001に変更
+      - "5052:5051"          # beacon API - ホスト側のポートを5052に変更
     command: [
       "--network=sepolia",
       "--data-path=/data",
