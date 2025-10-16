@@ -1,11 +1,11 @@
 @echo off
-echo Ethereum ノードセットアップツール
+echo Ethereum Node Setup Tool
 echo =============================
 echo.
-echo PowerShell スクリプトを実行します...
+echo Running PowerShell script...
 echo.
 
-powershell -ExecutionPolicy Bypass -File "%~dp0setup.ps1"
+powershell -ExecutionPolicy Bypass -File "%~dp0setup_fixed.ps1"
 
 echo.
 pause
