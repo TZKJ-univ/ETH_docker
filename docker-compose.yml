@@ -7,7 +7,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./ethereum_data/geth:/root/.ethereum
-      - ./data/jwtsecret:/root/.ethereum/jwtsecret
+      # jwtsecretはファイルなので、マウント先のディレクトリを事前に作成します
+      - ./data:/root/.ethereum/jwt
     ports:
       - "30305:30303"        # p2p - ホスト側のポートを30305に変更
       - "30305:30303/udp"    # p2p discovery - ホスト側のポートを30305に変更
@@ -34,7 +35,7 @@ services:
       "--metrics",
       "--metrics.addr", "0.0.0.0",
       "--metrics.port", "6060",
-      "--authrpc.jwtsecret", "/root/.ethereum/jwtsecret"
+      "--authrpc.jwtsecret", "/root/.ethereum/jwt/jwtsecret"
     ]
   
   beacon:
@@ -45,7 +46,8 @@ services:
       - geth
     volumes:
       - ./ethereum_data/beacon:/data
-      - ./data/jwtsecret:/data/jwtsecret
+      # jwtsecretはファイルなので、マウント先のディレクトリを事前に作成します
+      - ./data:/data/jwt
     ports:
       - "9001:9000/tcp"      # p2p - ホスト側のポートを9001に変更
       - "9001:9000/udp"      # p2p discovery - ホスト側のポートを9001に変更
@@ -54,7 +56,7 @@ services:
       "--network=sepolia",
       "--data-path=/data",
       "--ee-endpoint=http://geth:8551",
-      "--ee-jwt-secret-file=/data/jwtsecret",
+      "--ee-jwt-secret-file=/data/jwt/jwtsecret",
       "--rest-api-enabled=true",
       "--rest-api-interface=0.0.0.0",
       "--rest-api-port=5051",
