@@ -7,6 +7,7 @@
 - `setup.bat` - Windows用セットアップヘルパー（PowerShellスクリプト実行用）
 - `setup.ps1` - Windows用セットアップスクリプト
 - `setup.sh` - Linux/macOS用セットアップスクリプト
+- `restart_geth.sh` - Gethコンテナ48時間ごと自動再起動スクリプト
 - `data/` - JWTシークレットなどの共有データ
 - `ethereum_data/` - チェーンデータ保存用ディレクトリ
 
@@ -126,6 +127,84 @@ curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","metho
 - `eth_syncing` が `false` の場合: 同期済み
 - `eth_blockNumber` の応答: 0x... の16進数で現在のブロック番号
 - Sepoliaテストネットの `net_version`: "11155111"
+
+## Gethコンテナの自動再起動（48時間ごと）
+
+長時間稼働しているGethコンテナは、メモリリークやパフォーマンス低下を起こす場合があります。
+`restart_geth.sh`スクリプトは、48時間ごとにGethコンテナを自動的に再起動します。
+
+### 使い方
+
+```bash
+# 実行権限を付与
+chmod +x restart_geth.sh
+
+# バックグラウンドで実行（nohupで永続実行）
+nohup ./restart_geth.sh > /dev/null 2>&1 &
+
+# プロセスIDを確認（必要に応じて停止する場合）
+ps aux | grep restart_geth.sh
+```
+
+### 停止方法
+
+```bash
+# プロセスを検索
+ps aux | grep restart_geth.sh
+
+# プロセスを停止（PIDを確認してから）
+kill <PID>
+```
+
+### ログの確認
+
+再起動の履歴は `./logs/geth_restart.log` に記録されます:
+
+```bash
+# 最新20行を表示
+tail -20 ./logs/geth_restart.log
+
+# リアルタイムでログを監視
+tail -f ./logs/geth_restart.log
+```
+
+### systemdサービスとして登録（推奨）
+
+システム起動時に自動的に実行するには、systemdサービスとして登録します:
+
+1. サービスファイルを作成:
+```bash
+sudo nano /etc/systemd/system/geth-restart.service
+```
+
+2. 以下の内容を記述（パスは適切に変更してください）:
+```ini
+[Unit]
+Description=Geth Container Auto Restart Service
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=your_username
+WorkingDirectory=/path/to/eth_testnet
+ExecStart=/path/to/eth_testnet/restart_geth.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+3. サービスを有効化して起動:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable geth-restart.service
+sudo systemctl start geth-restart.service
+
+# ステータス確認
+sudo systemctl status geth-restart.service
+```
 
 ## トラブルシューティング
 
