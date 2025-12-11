@@ -1,3 +1,6 @@
 /data
 /ethereum_data
-.txt
+*.txt
+*.csv
+/txt
+/csv

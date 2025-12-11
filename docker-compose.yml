@@ -15,6 +15,7 @@ services:
       - "8565:8545"          # RPC (HTTP) - ホスト側のポートを8565に変更
       - "8566:8546"          # WS - ホスト側のポートを8566に変更
       - "8552:8551"          # Auth RPC (Engine API) - ホスト側のポートを8552に変更
+      - "6060:6060"          # Metrics
     command: [
       "--sepolia",           # Sepolia テストネットを使用
       "--http",
@@ -37,53 +38,46 @@ services:
       "--metrics.port", "6060",
       "--authrpc.jwtsecret", "/root/.ethereum/jwt/jwtsecret"
     ]
+    deploy:
+      resources:
+        limits:
+          cpus: '12'
+          memory: 16G
   
   beacon:
-    image: sigp/lighthouse:latest
-    container_name: lighthouse-beacon
+    image: prysmaticlabs/prysm-beacon-chain:stable
+    container_name: prysm-beacon
     restart: unless-stopped
     depends_on:
       - geth
     volumes:
-      - ./ethereum_data/beacon:/root/.lighthouse
-      # jwtsecretはファイルなので、マウント先のディレクトリを事前に作成します
-      - ./data:/root/.lighthouse/jwt
+      - ./ethereum_data/beacon:/data
+      - ./data:/data/jwt
     ports:
       - "9001:9000/tcp"      # p2p - ホスト側のポートを9001に変更
       - "9001:9000/udp"      # p2p discovery - ホスト側のポートを9001に変更
-      - "5052:5052"          # beacon API
+      - "5052:3500"          # Prysm HTTP API - ホスト側はLighthouseと同じ5052を使用
+      - "5054:8080"          # Prysm Metrics - ホスト側はLighthouseと同じ5054を使用
     command:
-      - lighthouse
-      - bn
-      - --network
-      - sepolia
-      - --datadir
-      - /root/.lighthouse
-      - --http
-      - --http-address
-      - 0.0.0.0
-      - --http-port
-      - "5052"
-      - --execution-endpoint
-      - http://geth:8551
-      - --execution-jwt
-      - /root/.lighthouse/jwt/jwtsecret
-      - --checkpoint-sync-url
-      - https://sepolia.checkpoint-sync.ethpandaops.io
-      - --disable-deposit-contract-sync
-      - --metrics
-      - --metrics-address
-      - 0.0.0.0
-      - --metrics-port
-      - "5054"
-      - --port
-      - "9000"
-      - --discovery-port
-      - "9000"
-      - --target-peers
-      - "50"
+      - --sepolia
+      - --datadir=/data
+      - --execution-endpoint=http://geth:8551
+      - --jwt-secret=/data/jwt/jwtsecret
+      - --checkpoint-sync-url=https://sepolia.checkpoint-sync.ethpandaops.io
+      - --genesis-beacon-api-url=https://sepolia.checkpoint-sync.ethpandaops.io
+      - --rpc-host=0.0.0.0
+      - --grpc-gateway-host=0.0.0.0
+      - --monitoring-host=0.0.0.0
+      - --accept-terms-of-use
+      - --p2p-tcp-port=9000
+      - --p2p-udp-port=9000
+      - --p2p-max-peers=50
       - --subscribe-all-subnets
-      - --import-all-attestations
+    deploy:
+      resources:
+        limits:
+          cpus: '12'
+          memory: 16G
 
 # ホストマシンの D ドライブにデータを保存するため、Docker 管理ボリュームは使用しません
 # volumes:
