@@ -1,6 +1,25 @@
-/data
-/ethereum_data
-*.txt
-*.csv
-/txt
-/csv
+# Docker / Environment
+.env
+docker-compose.override.yml
+
+# Ethereum Data (Huge files, do not commit)
+ethereum_data_*/
+ethereum_data_mainnet/
+ethereum_data_ephemery/
+
+# Generated Configuration (Downloaded by setup script)
+ephemery_config/
+testnet-all.tar.gz
+
+# Secrets & Keys (Security)
+validator_keys/
+data/jwtsecret
+import_keys.sh  # (Optional: contains logic but no secrets, keeping it is fine, but keys dir is ignored)
+
+# OS / Editor
+.DS_Store
+.idea/
+.vscode/
+
+# Logs
+*.logcsv/

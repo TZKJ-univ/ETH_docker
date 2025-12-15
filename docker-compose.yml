@@ -6,7 +6,8 @@ services:
     container_name: geth-fullnode
     restart: unless-stopped
     volumes:
-      - ./ethereum_data/geth:/root/.ethereum
+      - ./ethereum_data_ephemery/geth:/root/.ethereum
+      - ./ephemery_config:/config:ro
       # jwtsecretはファイルなので、マウント先のディレクトリを事前に作成します
       - ./data:/root/.ethereum/jwt
     ports:
@@ -17,7 +18,7 @@ services:
       - "8552:8551"          # Auth RPC (Engine API) - ホスト側のポートを8552に変更
       - "6060:6060"          # Metrics
     command: [
-      "--sepolia",           # Sepolia テストネットを使用
+      # "--sepolia",           # Ephemery uses custom genesis
       "--http",
       "--http.addr", "0.0.0.0",
       "--http.api", "eth,net,web3,debug,engine",
@@ -26,7 +27,7 @@ services:
       "--ws",
       "--ws.addr", "0.0.0.0",
       "--ws.api", "eth,net,web3",
-      "--syncmode", "snap",  # より高速な同期モード
+      "--syncmode", "full",  # Ephemery is small, full sync is fine
       "--gcmode", "full",
       "--http.port", "8545",
       "--ws.port", "8546",
@@ -37,7 +38,9 @@ services:
       "--metrics.addr", "0.0.0.0",
       "--metrics.port", "6060",
       "--authrpc.jwtsecret", "/root/.ethereum/jwt/jwtsecret",
-      "--ipcdisable"
+      "--ipcdisable",
+      "--maxpeers", "50",
+      "--bootnodes", "${EPHEMERY_BOOTNODES_GETH}"
     ]
     deploy:
       resources:
@@ -52,7 +55,8 @@ services:
     depends_on:
       - geth
     volumes:
-      - ./ethereum_data/beacon:/data
+      - ./ethereum_data_ephemery/beacon:/data
+      - ./ephemery_config:/config:ro
       - ./data:/data/jwt
     ports:
       - "9001:9000/tcp"      # p2p - ホスト側のポートを9001に変更
@@ -60,12 +64,13 @@ services:
       - "5052:3500"          # Prysm HTTP API - ホスト側はLighthouseと同じ5052を使用
       - "5054:8080"          # Prysm Metrics - ホスト側はLighthouseと同じ5054を使用
     command:
-      - --sepolia
+      # - --sepolia            # Ephemery uses custom config
       - --datadir=/data
       - --execution-endpoint=http://geth:8551
       - --jwt-secret=/data/jwt/jwtsecret
-      - --checkpoint-sync-url=https://sepolia.checkpoint-sync.ethpandaops.io
-      - --genesis-beacon-api-url=https://sepolia.checkpoint-sync.ethpandaops.io
+      - --chain-config-file=/config/config.yaml
+      - --genesis-state=/config/genesis.ssz
+      - --bootstrap-node=${EPHEMERY_BOOTNODE_PRYSM}
       - --rpc-host=0.0.0.0
       - --grpc-gateway-host=0.0.0.0
       - --monitoring-host=0.0.0.0
@@ -79,6 +84,28 @@ services:
         limits:
           cpus: '6'
           memory: 16G
+
+  validator:
+    image: prysmaticlabs/prysm-validator:stable
+    container_name: prysm-validator
+    restart: unless-stopped
+    depends_on:
+      - beacon
+    volumes:
+      - ./ethereum_data_ephemery/validator:/data
+      - ./ephemery_config:/config:ro
+      - ./validator_keys:/keys:ro
+    command:
+      - --datadir=/data
+      - --beacon-rpc-provider=beacon:4000
+      - --chain-config-file=/config/config.yaml
+      - --accept-terms-of-use
+      - --wallet-dir=/data/wallet
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
 
 # ホストマシンの D ドライブにデータを保存するため、Docker 管理ボリュームは使用しません
 # volumes:
