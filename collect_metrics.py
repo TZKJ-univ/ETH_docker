@@ -11,29 +11,9 @@ import os
 # Configuration
 GETH_METRICS_URL = "http://localhost:6060/debug/metrics/prometheus"
 PRYSM_METRICS_URL = "http://localhost:5054/metrics" # Mapped from 8080 in docker-compose
-GETH_RPC_URL = "http://localhost:8545"
-PRYSM_API_URL = "http://localhost:3500/eth/v1/node/health" # Mapped from 5052
+GETH_RPC_URL = "http://localhost:8565"
+PRYSM_API_URL = "http://localhost:5052/eth/v1/node/health" # Mapped from 5052
 INTERVAL = 10  # Seconds
-
-def get_docker_stats():
-    """Get CPU and Memory usage for containers."""
-    try:
-        # Format: ContainerName, CPU%, MemUsage
-        cmd = ["docker", "stats", "--no-stream", "--format", "{{.Name}},{{.CPUPerc}},{{.MemUsage}}"]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        stats = {}
-        for line in result.stdout.strip().split('\n'):
-            parts = line.split(',')
-            if len(parts) >= 3:
-                name = parts[0]
-                cpu = parts[1].replace('%', '')
-                # Mem usage often comes as "100MiB / 1GiB", take the first part
-                mem = parts[2].split('/')[0].strip()
-                stats[name] = {'cpu': cpu, 'mem': mem}
-        return stats
-    except Exception as e:
-        print(f"Error getting docker stats: {e}")
-        return {}
 
 def measure_latency(url):
     """Measure HTTP round-trip time in milliseconds."""
@@ -46,15 +26,24 @@ def measure_latency(url):
         # print(f"Error measuring latency for {url}: {e}")
         return 0
 
-def fetch_prometheus_metric(url, metric_name):
+def fetch_prometheus_metric(url, metric_name, labels={}):
     """Simple parser to find a metric value from Prometheus text format."""
     try:
         with urllib.request.urlopen(url, timeout=5) as response:
             data = response.read().decode('utf-8')
-            # Look for lines like: metric_name value
-            # Handle comments and types
-            # Use a regex that allows for optional labels {key="val"}
-            pattern = re.compile(rf"^{re.escape(metric_name)}(?:{{[^}}]*}})? ([\d\.]+)", re.MULTILINE)
+            
+            # Construct label string, e.g. {key="val",key2="val2"}
+            label_str = ""
+            if labels:
+                parts = [f'{k}="{v}"' for k, v in labels.items()]
+                label_str = r"\{" + r",".join(parts) + r"\}"
+            
+            # Regex to find the metric line
+            if label_str:
+                 pattern = re.compile(rf"^{re.escape(metric_name)}{label_str}\s+([\d\.]+)", re.MULTILINE)
+            else:
+                 pattern = re.compile(rf"^{re.escape(metric_name)}(?:\{{[^}}]*\}})?\s+([\d\.]+)", re.MULTILINE)
+
             match = pattern.search(data)
             if match:
                 return float(match.group(1))
@@ -95,9 +84,9 @@ def main():
     # Initialize CSV
     headers = [
         "Timestamp",
-        "Geth_CPU(%)", "Geth_Mem", "Geth_Latency(ms)", "Geth_Peers", "Geth_Block", "Geth_TX_Pending", "Geth_Ingress_Bytes", "Geth_Egress_Bytes",
-        "Geth_GasPrice(Gwei)", "Geth_BaseFee(Gwei)", "Geth_GasUsed", "Geth_GasLimit", "Geth_GasUsage(%)",
-        "Prysm_CPU(%)", "Prysm_Mem", "Prysm_Latency(ms)", "Prysm_Peers", "Prysm_Slot", "Prysm_Finalized", "Prysm_Validators", "Prysm_Reorgs"
+        "Geth_Latency(ms)", "Geth_Peers", "Geth_Block", "Geth_TX_Pending",
+        "Geth_GasPrice(Gwei)", "Geth_BaseFee(Gwei)", "Geth_GasUsed", "Geth_GasLimit", "Geth_GasUsage(%)", "Geth_TxCount", "Geth_Internal_Latency(us)",
+        "Prysm_Latency(ms)", "Prysm_Peers", "Prysm_Slot", "Prysm_Finalized", "Prysm_Validators", "Prysm_Reorgs"
     ]
     
     with open(csv_file, 'w', newline='') as f:
@@ -108,32 +97,30 @@ def main():
         while True:
             timestamp = datetime.datetime.now().isoformat()
             
-            # 1. Docker Stats
-            docker_stats = get_docker_stats()
-            geth_stats = docker_stats.get('geth-fullnode', {'cpu': '0', 'mem': '0'})
-            prysm_stats = docker_stats.get('prysm-beacon', {'cpu': '0', 'mem': '0'})
-
-            # 2. Latency
+            # 1. Latency (Ping)
             geth_latency = measure_latency(GETH_METRICS_URL) 
             prysm_latency = measure_latency(PRYSM_API_URL)
 
-            # 3. Internal Metrics
-            # Geth
+            # 2. Internal Metrics
+            # Geth Prom
             geth_peers = fetch_prometheus_metric(GETH_METRICS_URL, "p2p_peers")
             geth_block = fetch_prometheus_metric(GETH_METRICS_URL, "chain_head_block")
             geth_tx_pending = fetch_prometheus_metric(GETH_METRICS_URL, "txpool_pending")
-            geth_ingress = fetch_prometheus_metric(GETH_METRICS_URL, "p2p_ingress_bytes_total")
-            geth_egress = fetch_prometheus_metric(GETH_METRICS_URL, "p2p_egress_bytes_total")
             
-            # Geth RPC (Gas)
+            # Geth Internal Latency (RPC duration 95%ile)
+            geth_internal_latency = fetch_prometheus_metric(GETH_METRICS_URL, "rpc_duration_all", {"quantile": "0.95"})
+            
+            # Geth RPC (Gas & Throughput)
             gas_price_wei = get_json_rpc(GETH_RPC_URL, "eth_gasPrice")
             gas_price_gwei = int(gas_price_wei, 16) / 1e9 if gas_price_wei else 0
             
             latest_block = get_json_rpc(GETH_RPC_URL, "eth_getBlockByNumber", ["latest", False])
+            
             base_fee_gwei = 0
             gas_used = 0
             gas_limit = 0
             gas_usage_percent = 0
+            tx_count = 0
             
             if latest_block:
                 base_fee_wei = latest_block.get('baseFeePerGas')
@@ -144,8 +131,12 @@ def main():
                 gas_limit = int(latest_block.get('gasLimit', '0'), 16)
                 if gas_limit > 0:
                     gas_usage_percent = (gas_used / gas_limit) * 100
+                
+                # Count transactions (Throughput)
+                transactions = latest_block.get('transactions', [])
+                tx_count = len(transactions)
 
-            # Prysm
+            # Prysm Prom
             prysm_peers = fetch_prometheus_metric(PRYSM_METRICS_URL, "p2p_peer_count")
             prysm_slot = fetch_prometheus_metric(PRYSM_METRICS_URL, "beacon_head_slot")
             prysm_finalized = fetch_prometheus_metric(PRYSM_METRICS_URL, "beacon_finalized_epoch")
@@ -154,9 +145,9 @@ def main():
 
             row = [
                 timestamp,
-                geth_stats['cpu'], geth_stats['mem'], f"{geth_latency:.2f}", int(geth_peers), int(geth_block), int(geth_tx_pending), int(geth_ingress), int(geth_egress),
-                f"{gas_price_gwei:.2f}", f"{base_fee_gwei:.2f}", int(gas_used), int(gas_limit), f"{gas_usage_percent:.2f}",
-                prysm_stats['cpu'], prysm_stats['mem'], f"{prysm_latency:.2f}", int(prysm_peers), int(prysm_slot), int(prysm_finalized), int(prysm_validators), int(prysm_reorgs)
+                f"{geth_latency:.2f}", int(geth_peers), int(geth_block), int(geth_tx_pending),
+                f"{gas_price_gwei:.2f}", f"{base_fee_gwei:.2f}", int(gas_used), int(gas_limit), f"{gas_usage_percent:.2f}", int(tx_count), f"{geth_internal_latency:.2f}",
+                f"{prysm_latency:.2f}", int(prysm_peers), int(prysm_slot), int(prysm_finalized), int(prysm_validators), int(prysm_reorgs)
             ]
 
             print(f"Collected: {row}")
