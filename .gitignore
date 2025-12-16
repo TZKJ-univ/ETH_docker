@@ -23,3 +23,5 @@ import_keys.sh  # (Optional: contains logic but no secrets, keeping it is fine, 
 
 # Logs
 *.logcsv/
+*.txt
+/csv

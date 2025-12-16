@@ -6,7 +6,7 @@ services:
     container_name: geth-fullnode
     restart: unless-stopped
     volumes:
-      - ./ethereum_data_ephemery/geth:/root/.ethereum
+      - D:/ethereum_data_ephemery/geth:/root/.ethereum
       - ./ephemery_config:/config:ro
       # jwtsecretはファイルなので、マウント先のディレクトリを事前に作成します
       - ./data:/root/.ethereum/jwt
@@ -46,7 +46,7 @@ services:
       resources:
         limits:
           cpus: '6'
-          memory: 16G
+          memory: 8G
   
   beacon:
     image: prysmaticlabs/prysm-beacon-chain:stable
@@ -55,7 +55,7 @@ services:
     depends_on:
       - geth
     volumes:
-      - ./ethereum_data_ephemery/beacon:/data
+      - D:/ethereum_data_ephemery/beacon:/data
       - ./ephemery_config:/config:ro
       - ./data:/data/jwt
     ports:
@@ -79,11 +79,12 @@ services:
       - --p2p-udp-port=9000
       - --p2p-max-peers=50
       - --subscribe-all-subnets
+      - --min-sync-peers=1
     deploy:
       resources:
         limits:
           cpus: '6'
-          memory: 16G
+          memory: 8G
 
   validator:
     image: prysmaticlabs/prysm-validator:stable
@@ -92,7 +93,7 @@ services:
     depends_on:
       - beacon
     volumes:
-      - ./ethereum_data_ephemery/validator:/data
+      - D:/ethereum_data_ephemery/validator:/data
       - ./ephemery_config:/config:ro
       - ./validator_keys:/keys:ro
     command:
@@ -101,6 +102,7 @@ services:
       - --chain-config-file=/config/config.yaml
       - --accept-terms-of-use
       - --wallet-dir=/data/wallet
+      - --wallet-password-file=/data/password.txt
     deploy:
       resources:
         limits:
