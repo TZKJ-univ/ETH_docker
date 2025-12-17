@@ -70,7 +70,12 @@ services:
       - --jwt-secret=/data/jwt/jwtsecret
       - --chain-config-file=/config/config.yaml
       - --genesis-state=/config/genesis.ssz
-      - --bootstrap-node=${EPHEMERY_BOOTNODE_PRYSM}
+      - --bootstrap-node=enr:-MC4QN7Zf_vxLplW7lMPtbTxIL1hLqG6fq230Krca0Ej0TD2EF5fQIMCFN3uP-5KW630ctt08iHBXqzmGg9ymmu0kRkHh2F0dG5ldHOIAAAAAAAAABiDY2djBIRldGgykPE2bN9wABAbAAgAAAAAAACCaWSCdjSCaXCEiUrL8INuZmSEIVlFsolzZWNwMjU2azGhA2s2Gx8R9YM1HdhEPGjWGuxZMsK6kKlnAYwqjqs6EQF6g3RjcIIjjIN1ZHCCI4w
+      - --bootstrap-node=enr:-Iq4QNMYHuJGbnXyBj6FPS2UkOQ-hnxT-mIdNMMr7evR9UYtLemaluorL6J10RoUG1V4iTPTEbl3huijSNs5_ssBWFiGAYhBNHOzgmlkgnY0gmlwhIlKy_CJc2VjcDI1NmsxoQNULnJBzD8Sakd9EufSXhM4rQTIkhKBBTmWVJUtLCp8KoN1ZHCCIyk
+      - --bootstrap-node=enr:-Iq4QIc297-de1P6hznMX2cIdVsQkve9BD9NUsJ7vVQa7eh5UpekA9rLid5A-yLiS3gZwOGugYZPi58x76zNs2cEQFCGAYhBJlTYgmlkgnY0gmlwhEFtmi6Jc2VjcDI1NmsxoQJDyix-IHa_mVwLBEN9NeG8I-RUjNQK_MGxk9OqRQUAtIN1ZHCCIyg
+      - --peer=enr:-MC4QN7Zf_vxLplW7lMPtbTxIL1hLqG6fq230Krca0Ej0TD2EF5fQIMCFN3uP-5KW630ctt08iHBXqzmGg9ymmu0kRkHh2F0dG5ldHOIAAAAAAAAABiDY2djBIRldGgykPE2bN9wABAbAAgAAAAAAACCaWSCdjSCaXCEiUrL8INuZmSEIVlFsolzZWNwMjU2azGhA2s2Gx8R9YM1HdhEPGjWGuxZMsK6kKlnAYwqjqs6EQF6g3RjcIIjjIN1ZHCCI4w
+      - --peer=enr:-Iq4QNMYHuJGbnXyBj6FPS2UkOQ-hnxT-mIdNMMr7evR9UYtLemaluorL6J10RoUG1V4iTPTEbl3huijSNs5_ssBWFiGAYhBNHOzgmlkgnY0gmlwhIlKy_CJc2VjcDI1NmsxoQNULnJBzD8Sakd9EufSXhM4rQTIkhKBBTmWVJUtLCp8KoN1ZHCCIyk
+      - --peer=enr:-Iq4QIc297-de1P6hznMX2cIdVsQkve9BD9NUsJ7vVQa7eh5UpekA9rLid5A-yLiS3gZwOGugYZPi58x76zNs2cEQFCGAYhBJlTYgmlkgnY0gmlwhEFtmi6Jc2VjcDI1NmsxoQJDyix-IHa_mVwLBEN9NeG8I-RUjNQK_MGxk9OqRQUAtIN1ZHCCIyg
       - --rpc-host=0.0.0.0
       - --grpc-gateway-host=0.0.0.0
       - --monitoring-host=0.0.0.0
@@ -80,6 +85,7 @@ services:
       - --p2p-max-peers=50
       - --subscribe-all-subnets
       - --min-sync-peers=1
+      - --suggested-fee-recipient=0xD63500725c1fB6b1bdA53416Ee62E65Bb46cd6cd
     deploy:
       resources:
         limits:
@@ -103,6 +109,7 @@ services:
       - --accept-terms-of-use
       - --wallet-dir=/data/wallet
       - --wallet-password-file=/data/password.txt
+      - --suggested-fee-recipient=0xD63500725c1fB6b1bdA53416Ee62E65Bb46cd6cd
     deploy:
       resources:
         limits:
